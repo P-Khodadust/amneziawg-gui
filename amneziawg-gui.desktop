@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=AmneziaWG
+GenericName=VPN Client
+Comment=Connect and disconnect AmneziaWG tunnels
+Exec=python3 @APP@
+Icon=network-vpn
+Categories=Network;
+Keywords=vpn;wireguard;amnezia;awg;

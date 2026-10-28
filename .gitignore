@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+# never commit tunnel configs: they hold private keys
+*.conf
+.DS_Store
