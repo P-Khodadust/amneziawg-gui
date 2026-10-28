@@ -5,6 +5,7 @@
 ### A native Linux desktop app for AmneziaWG: import a `.conf`, click the glowing button, you're through.
 
 <a href="https://github.com/P-Khodadust/amneziawg-gui/actions/workflows/selftest.yml"><img alt="Selftest" src="https://github.com/P-Khodadust/amneziawg-gui/actions/workflows/selftest.yml/badge.svg"></a>
+<a href="https://github.com/P-Khodadust/amneziawg-gui/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/P-Khodadust/amneziawg-gui?style=flat-square&color=2ee6a8&label=release"></a>
 <img alt="Linux" src="https://img.shields.io/badge/Linux-Fedora%20%C2%B7%20KDE%20Plasma-294172?style=flat-square&logo=fedora&logoColor=white">
 <img alt="Python 3.12+" src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white">
 <img alt="PySide6" src="https://img.shields.io/badge/Qt%206-PySide6-41CD52?style=flat-square&logo=qt&logoColor=white">
@@ -74,6 +75,9 @@ cd ~/amneziawg-gui
 sudo bash setup.sh "$USER"
 sed "s|@APP@|$PWD/awg_gui.py|" amneziawg-gui.desktop > ~/.local/share/applications/amneziawg-gui.desktop
 ```
+
+Prefer a download? Grab `amneziawg-gui-<version>.tar.gz` from the [latest release](https://github.com/P-Khodadust/amneziawg-gui/releases/latest),
+extract it somewhere permanent (the launcher points at it), and run the same last two commands inside it.
 
 `setup.sh` (one time, as root) enables the [`tigro/amneziawg`](https://copr.fedorainfracloud.org/coprs/tigro/amneziawg/)
 Copr, installs `amneziawg-tools`, the `amneziawg-dkms` kernel module and PySide6, builds the module for your
