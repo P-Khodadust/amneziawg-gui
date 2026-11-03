@@ -115,21 +115,22 @@ def pin_endpoint(text):
     """Keep traffic to the server itself out of the tunnel, like the Amnezia apps do.
 
     awg-quick only does that for AllowedIPs with a /0. With a split list that covers the server,
-    the tunnel's own packets loop back into it: one handshake, then nothing.
-    shortcut: IPv4-literal endpoints only; a hostname endpoint would need resolving inside the hook.
+    the tunnel's own packets loop back into it: one handshake, then nothing. The hook resolves the
+    endpoint (IP or hostname) at every connect and pins each address via the current route; that's
+    harmless when the server isn't covered, so every split config gets it.
+    shortcut: IPv4 only (getent ahostsv4); add an AAAA pass if an IPv6-only endpoint ever shows up.
     """
-    m = re.search(r"(?mi)^\s*Endpoint\s*=\s*(\d+\.\d+\.\d+\.\d+):\d+\s*$", text)
-    if not m or f"route replace {m[1]}/32" in text:
-        return text
-    ip = ipaddress.ip_address(m[1])
+    # the name lands in a root shell hook, so only plain hostname/IPv4 characters are accepted
+    m = re.search(r"(?mi)^\s*Endpoint\s*=\s*([A-Za-z0-9.-]+):\d+\s*$", text)
     nets = [ipaddress.ip_network(a.strip(), strict=False)
             for line in re.findall(r"(?mi)^\s*AllowedIPs\s*=\s*(.+)$", text) for a in line.split(",") if a.strip()]
-    v4 = [n for n in nets if n.version == 4]
-    if any(n.prefixlen == 0 for n in v4) or not any(ip in n for n in v4):
+    if not m or "awg-pin-" in text or any(n.version == 4 and n.prefixlen == 0 for n in nets):
         return text
+    pins = "/run/awg-pin-%i"  # the IPs pinned at connect, so disconnect removes exactly those
     hook = ("# added by AmneziaWG GUI: route the server itself outside the tunnel\n"
-            f"PreUp = ip -4 route replace {ip}/32 $(ip -4 route get {ip} | grep -oE '(via [0-9.]+ )?dev [^ ]+' | head -1)\n"
-            f"PostDown = ip -4 route del {ip}/32 || true\n")
+            f"PreUp = for ip in $(getent ahostsv4 {m[1]} | cut -d' ' -f1 | sort -u); do ip -4 route replace $ip/32 "
+            f"$(ip -4 route get $ip | grep -oE '(via [0-9.]+ )?dev [^ ]+' | head -1) && echo $ip; done > {pins} || true\n"
+            f"PostDown = for ip in $(cat {pins} 2>/dev/null); do ip -4 route del $ip/32 || true; done; rm -f {pins}\n")
     return re.sub(r"(?mi)^\[Interface\][^\n]*\n", lambda h: h[0] + hook, text, count=1)
 
 
@@ -534,11 +535,12 @@ def selftest():
     assert NAME_RE.fullmatch(suggest_name("/dl/a-very-long-config-name-here.conf"))
     conf = "[Interface]\nPrivateKey = x\n\n[Peer]\nEndpoint = 198.51.100.7:51820\nAllowedIPs = 1.0.0.0/8, 128.0.0.0/1, ::/0\n"
     pinned = pin_endpoint(conf)
-    assert pinned.startswith("[Interface]\n# added by") and "replace 198.51.100.7/32" in pinned
+    assert pinned.startswith("[Interface]\n# added by") and "getent ahostsv4 198.51.100.7 " in pinned
     assert pinned.index("PreUp") < pinned.index("PrivateKey") and pin_endpoint(pinned) == pinned  # once only
     assert pin_endpoint(conf.replace("128.0.0.0/1", "0.0.0.0/0")) == conf.replace("128.0.0.0/1", "0.0.0.0/0")
-    assert pin_endpoint(conf.replace("128.0.0.0/1", "2.0.0.0/8")) == conf.replace("128.0.0.0/1", "2.0.0.0/8")
-    assert pin_endpoint(conf.replace("198.51.100.7", "vpn.example.com")) == conf.replace("198.51.100.7", "vpn.example.com")
+    assert "getent ahostsv4 vpn.example.com " in pin_endpoint(conf.replace("198.51.100.7", "vpn.example.com"))
+    evil = conf.replace("198.51.100.7", "x;reboot")
+    assert pin_endpoint(evil) == evil  # never splices shell syntax into a root hook
     print("selftest ok")
 
 
